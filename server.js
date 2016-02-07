@@ -1,6 +1,7 @@
 var express = require('express');
 var server = express();
-var PORT = process.env.PORT || 3000;
+var secret = require('./config/secret')
+var PORT = process.env.PORT || secret.PORT;
 var morgan = require('morgan');
 var mongoose = require('mongoose');
 var User = require('./models/user');
@@ -10,12 +11,15 @@ var engine = require('ejs-mate');
 var session = require('express-session');
 var cookieParser = require('cookie-parser');
 var flash = require('express-flash');
-var db = 'mongodb://root:abc123@ds051635.mongolab.com:51635/amazondb';
+var MongoStore = require('connect-mongo/es5')(session);
+var passport = require('passport');
+
 
 var mainRoutes = require('./routes/main');
 var userRoutes = require('./routes/user');
 
-mongoose.connect(db,function(err){
+
+mongoose.connect(secret.database,function(err){
   if(err){
     console.log(err)
   }else{
@@ -31,10 +35,17 @@ server.use(cookieParser());
 server.use(session({
   resave:true,
   saveUninitialized:true,
-  secret:"Arash@$@"
+  secret:secret.secretKey,
+  store:new MongoStore({url:secret.database,autoReconnect:true})
 }));
 server.use(flash());
 
+server.use(passport.initialize());
+server.use(passport.session());
+server.use(function(req,res,next){
+  res.locals.user = req.user;
+  next();
+});
 server.engine('ejs',engine);
 server.set('view engine','ejs');
 
@@ -45,6 +56,6 @@ server.use(userRoutes);
 
 server.listen(PORT,function(err){
   if(err) throw err;
-  console.log("Server is running on port "+PORT);
+  console.log("Server is running on port "+ PORT);
 })
 
